@@ -165,7 +165,7 @@ const sampleFlashcards: Flashcard[] = [
   {
     id: '1',
     topic_id: '1',
-    card_front: 'You have a child component re-rendering every time its parent renders. You memoized the child with React.memo. It still re-renders. What''s the likely cause and fix?',
+    card_front: 'You have a child component re-rendering every time its parent renders. You memoized the child with React.memo. It still re-renders. What is the likely cause and fix?',
     card_back: 'The child is receiving a new function or object reference on every parent render. Even though React.memo shallow-compares props, new references fail the comparison. Use useCallback for functions and useMemo for objects.',
     difficulty: 'hard',
     has_code_snippet: true,
@@ -188,7 +188,7 @@ function Parent() {
   {
     id: '2',
     topic_id: '1',
-    card_front: 'What''s the difference between useTransition and useDeferredValue? When would you use each?',
+    card_front: 'What is the difference between useTransition and useDeferredValue? When would you use each?',
     card_back: 'useTransition wraps state updates (you call it). useDeferredValue wraps values (React handles it). Use useTransition when you control the update. Use useDeferredValue when you receive a value from parent.',
     difficulty: 'medium',
     has_code_snippet: true,

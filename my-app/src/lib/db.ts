@@ -26,4 +26,4 @@ export async function query(text: string, params?: any[]) {
 }
 
 export { pool };
-export const isDatabaseConfigured = () =>> hasDatabase;
+export const isDatabaseConfigured = () => hasDatabase;
