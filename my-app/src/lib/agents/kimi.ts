@@ -26,7 +26,7 @@ export async function kimiCompletion(options: KimiCompletionOptions) {
       'Authorization': `Bearer ${KIMI_API_KEY}`,
     },
     body: JSON.stringify({
-      model: options.model || 'kimi-coding',
+      model: options.model || 'kimi-for-coding',
       messages: options.messages,
       temperature: options.temperature ?? 0.7,
       max_tokens: options.max_tokens ?? 4000,
