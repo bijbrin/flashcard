@@ -2,12 +2,16 @@ import { ProgressRing } from "@/components/ProgressRing";
 import { SpacedRepBar } from "@/components/SpacedRepBar";
 import { CATEGORY_CONFIG, Category } from "@/types";
 import { getStats, getDueFlashcards } from "@/lib/queries";
+import { initDatabase } from "@/lib/init-db";
 import { ArrowRight, BookOpen, Flame, Target } from "lucide-react";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function DashboardPage() {
+  // Initialize database tables on first load
+  await initDatabase();
+  
   let stats = { totalTopics: 6, masteredCards: 0, dueToday: 0 };
   let dueCards: any[] = [];
   
