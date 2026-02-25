@@ -1,10 +1,21 @@
 import { Pool } from 'pg';
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+// Check if we have a database connection
+const hasDatabase = !!process.env.DATABASE_URL;
+
+let pool: Pool | null = null;
+
+if (hasDatabase) {
+  pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  });
+}
 
 export async function query(text: string, params?: any[]) {
+  if (!pool) {
+    throw new Error('Database not configured');
+  }
   const client = await pool.connect();
   try {
     const result = await client.query(text, params);
@@ -15,3 +26,4 @@ export async function query(text: string, params?: any[]) {
 }
 
 export { pool };
+export const isDatabaseConfigured = () => hasDatabase;
