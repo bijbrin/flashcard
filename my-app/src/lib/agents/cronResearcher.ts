@@ -1,43 +1,59 @@
 import { researchGitHubTopics } from './kimi';
-import { Topic } from '@/types';
+import { Category } from '@/types';
 
-const GITHUB_RESEARCH_QUERIES = [
-  'Next.js App Router performance issues 2025',
-  'React Server Components common mistakes',
-  'Next.js middleware authentication patterns',
-  'React hooks performance optimization',
-  'Next.js caching strategies production',
-];
+const CATEGORY_QUERIES: Record<Category, string[]> = {
+  'react-hooks': [
+    'React hooks performance patterns 2025',
+    'useTransition useDeferredValue real world',
+    'custom hooks composition patterns',
+  ],
+  'nextjs-core': [
+    'Next.js App Router patterns 2025',
+    'Partial Prerendering PPR production',
+    'Next.js middleware authentication',
+  ],
+  'third-party-api': [
+    'Stripe webhooks Next.js App Router',
+    'Clerk auth advanced patterns',
+    'Prisma Supabase integration',
+  ],
+  'server-side': [
+    'Server Actions mutations patterns',
+    'React Server Components data fetching',
+    'Edge Runtime vs Node.js trade-offs',
+  ],
+  'advanced': [
+    'Turborepo monorepo patterns 2025',
+    'Next.js Web Vitals optimization',
+    'React testing patterns Playwright',
+  ],
+  'ai-integration': [
+    'Vercel AI SDK streaming patterns',
+    'RAG implementation Next.js',
+    'OpenAI streaming React Suspense',
+  ],
+};
 
 /**
- * Research GitHub for new topics and patterns
+ * Research new topics for a specific category
  */
-export async function researchNewTopics(): Promise<Partial<Topic>[]> {
-  const allTopics: Partial<Topic>[] = [];
-
-  // Pick a random query for this run
-  const query = GITHUB_RESEARCH_QUERIES[Math.floor(Math.random() * GITHUB_RESEARCH_QUERIES.length)];
-
-  try {
-    console.log(`Researching GitHub: ${query}`);
-    
-    const result = await researchGitHubTopics(query);
-
-    if (result.topics?.length) {
-      const topics = result.topics.map((t: any) => ({
-        ...t,
-        id: crypto.randomUUID(),
-        slug: t.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-        source_urls: ['https://github.com'],
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }));
-
-      allTopics.push(...topics);
-    }
-  } catch (error) {
-    console.error('Error researching GitHub:', error);
-  }
-
-  return allTopics;
+export async function researchNewTopics(
+  category: Category,
+  count: number = 2
+): Promise<any[]> {
+  const queries = CATEGORY_QUERIES[category];
+  const query = queries[Math.floor(Math.random() * queries.length)];
+  
+  console.log(`Researching ${category}: ${query}`);
+  
+  const result = await researchGitHubTopics(query);
+  
+  // Return up to 'count' topics
+  return (result.topics || []).slice(0, count).map((t: any) => ({
+    ...t,
+    category,
+    source_urls: ['https://github.com'],
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }));
 }

@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  schedule:
+    # Run at 7:00 AM and 7:00 PM UTC (adjust for your timezone)
+    - cron: '0 7 * * *'
+    - cron: '0 19 * * *'
 
 env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -43,3 +47,14 @@ jobs:
       - name: Deploy to Vercel
         run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
         working-directory: ./my-app
+
+  research:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 7 * * *' || github.event.schedule == '0 19 * * *'
+    steps:
+      - name: Trigger Research
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            ${{ secrets.VERCEL_URL }}/api/research || true
