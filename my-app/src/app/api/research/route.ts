@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 import { researchNewTopics } from '@/lib/agents/cronResearcher';
 import { generateFlashcardsForTopics } from '@/lib/agents/flashcardEngine';
 import { insertTopic, insertFlashcard } from '@/lib/queries';
-import { CATEGORY_CONFIG, Category } from '@/types';
+import { Category } from '@/types';
 
-const TARGET_PER_CATEGORY = 2; // 2 topics per category = 12 total
+const TARGET_PER_CATEGORY = 2;
 const CATEGORIES: Category[] = [
   'react-hooks',
   'nextjs-core', 
@@ -14,10 +14,15 @@ const CATEGORIES: Category[] = [
   'ai-integration'
 ];
 
-/**
- * Research and add new topics with balanced distribution
- */
 export async function POST(request: Request) {
+  // Check API keys
+  if (!process.env.KIMI_API_KEY) {
+    return NextResponse.json({ 
+      error: 'KIMI_API_KEY not configured',
+      message: 'Please add KIMI_API_KEY to environment variables'
+    }, { status: 500 });
+  }
+
   // Verify secret
   const authHeader = request.headers.get('authorization');
   const expectedSecret = process.env.CRON_SECRET;
@@ -31,35 +36,47 @@ export async function POST(request: Request) {
     
     const results: { category: string; topics: string[] }[] = [];
     
-    // Research for each category
     for (const category of CATEGORIES) {
       console.log(`Researching ${category}...`);
       
-      const topics = await researchNewTopics(category, TARGET_PER_CATEGORY);
-      const addedTopics: string[] = [];
-      
-      for (const topicData of topics) {
-        try {
-          // Insert topic
-          const topic = await insertTopic({
-            ...topicData,
-            category,
-            slug: topicData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-          });
-          
-          addedTopics.push(topic.title);
-          
-          // Generate and insert flashcards
-          const flashcards = await generateFlashcardsForTopics([topic]);
-          for (const flashcard of flashcards) {
-            await insertFlashcard({ ...flashcard, topic_id: topic.id });
+      try {
+        const topics = await researchNewTopics(category, TARGET_PER_CATEGORY);
+        const addedTopics: string[] = [];
+        
+        for (const topicData of topics) {
+          try {
+            const topic = await insertTopic({
+              title: topicData.title,
+              slug: topicData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').substring(0, 50),
+              category,
+              difficulty: topicData.difficulty || 3,
+              plain_english_summary: topicData.plain_english_summary || topicData.why_it_matters || '',
+              when_to_use: topicData.when_to_use || topicData.better_approach || '',
+              when_not_to_use: topicData.when_not_to_use || topicData.common_approach || '',
+              code_snippet: topicData.code_snippet || '',
+              code_explanation: topicData.code_explanation || '',
+              real_world_example: topicData.real_world_example || '',
+              gotchas: topicData.gotchas || [],
+              source_urls: topicData.source_urls || ['https://github.com'],
+            });
+            
+            addedTopics.push(topic.title);
+            
+            // Generate flashcards
+            const flashcards = await generateFlashcardsForTopics([topic]);
+            for (const flashcard of flashcards) {
+              await insertFlashcard({ ...flashcard, topic_id: topic.id });
+            }
+          } catch (e) {
+            console.error(`Failed to insert topic: ${topicData.title}`, e);
           }
-        } catch (e) {
-          console.error(`Failed to insert topic: ${topicData.title}`, e);
         }
+        
+        results.push({ category, topics: addedTopics });
+      } catch (e) {
+        console.error(`Failed to research ${category}:`, e);
+        results.push({ category, topics: [] });
       }
-      
-      results.push({ category, topics: addedTopics });
     }
 
     const totalAdded = results.reduce((sum, r) => sum + r.topics.length, 0);
