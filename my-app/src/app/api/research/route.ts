@@ -31,67 +31,90 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  try {
-    console.log('Starting research job...');
-    
-    const results: { category: string; topics: string[] }[] = [];
-    
-    for (const category of CATEGORIES) {
-      console.log(`Researching ${category}...`);
-      
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      const sendProgress = (data: any) => {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+      };
+
       try {
-        const topics = await researchNewTopics(category, TARGET_PER_CATEGORY);
-        const addedTopics: string[] = [];
+        sendProgress({ type: 'start', total: CATEGORIES.length });
         
-        for (const topicData of topics) {
+        const results: { category: string; topics: string[] }[] = [];
+        
+        for (let i = 0; i < CATEGORIES.length; i++) {
+          const category = CATEGORIES[i];
+          
+          sendProgress({ 
+            type: 'progress', 
+            category, 
+            completed: i, 
+            total: CATEGORIES.length,
+            percentage: Math.round((i / CATEGORIES.length) * 100)
+          });
+          
           try {
-            const topic = await insertTopic({
-              title: topicData.title,
-              slug: topicData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').substring(0, 50),
-              category,
-              difficulty: topicData.difficulty || 3,
-              plain_english_summary: topicData.plain_english_summary || topicData.why_it_matters || '',
-              when_to_use: topicData.when_to_use || topicData.better_approach || '',
-              when_not_to_use: topicData.when_not_to_use || topicData.common_approach || '',
-              code_snippet: topicData.code_snippet || '',
-              code_explanation: topicData.code_explanation || '',
-              real_world_example: topicData.real_world_example || '',
-              gotchas: topicData.gotchas || [],
-              source_urls: topicData.source_urls || ['https://github.com'],
-            });
+            const topics = await researchNewTopics(category, TARGET_PER_CATEGORY);
+            const addedTopics: string[] = [];
             
-            addedTopics.push(topic.title);
-            
-            // Generate flashcards
-            const flashcards = await generateFlashcardsForTopics([topic]);
-            for (const flashcard of flashcards) {
-              await insertFlashcard({ ...flashcard, topic_id: topic.id });
+            for (const topicData of topics) {
+              try {
+                const topic = await insertTopic({
+                  title: topicData.title,
+                  slug: topicData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').substring(0, 50),
+                  category,
+                  difficulty: topicData.difficulty || 3,
+                  plain_english_summary: topicData.plain_english_summary || topicData.why_it_matters || '',
+                  when_to_use: topicData.when_to_use || topicData.better_approach || '',
+                  when_not_to_use: topicData.when_not_to_use || topicData.common_approach || '',
+                  code_snippet: topicData.code_snippet || '',
+                  code_explanation: topicData.code_explanation || '',
+                  real_world_example: topicData.real_world_example || '',
+                  gotchas: topicData.gotchas || [],
+                  source_urls: topicData.source_urls || ['https://github.com'],
+                });
+                
+                addedTopics.push(topic.title);
+                
+                const flashcards = await generateFlashcardsForTopics([topic]);
+                for (const flashcard of flashcards) {
+                  await insertFlashcard({ ...flashcard, topic_id: topic.id });
+                }
+              } catch (e) {
+                console.error(`Failed to insert topic: ${topicData.title}`, e);
+              }
             }
+            
+            results.push({ category, topics: addedTopics });
           } catch (e) {
-            console.error(`Failed to insert topic: ${topicData.title}`, e);
+            console.error(`Failed to research ${category}:`, e);
+            results.push({ category, topics: [] });
           }
         }
+
+        const totalAdded = results.reduce((sum, r) => sum + r.topics.length, 0);
+
+        sendProgress({ 
+          type: 'complete', 
+          topics_added: totalAdded,
+          details: results,
+          percentage: 100
+        });
         
-        results.push({ category, topics: addedTopics });
-      } catch (e) {
-        console.error(`Failed to research ${category}:`, e);
-        results.push({ category, topics: [] });
+        controller.close();
+      } catch (error) {
+        sendProgress({ type: 'error', error: String(error) });
+        controller.close();
       }
     }
+  });
 
-    const totalAdded = results.reduce((sum, r) => sum + r.topics.length, 0);
-
-    return NextResponse.json({
-      success: true,
-      topics_added: totalAdded,
-      details: results,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error('Research error:', error);
-    return NextResponse.json(
-      { error: 'Research job failed', details: String(error) },
-      { status: 500 }
-    );
-  }
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+    },
+  });
 }
