@@ -1,4 +1,5 @@
 import { Topic, Flashcard, FlashcardWithProgress } from '@/types';
+import { query, isDatabaseConfigured } from './db';
 
 // Sample data for when database is not available
 const sampleTopics: Topic[] = [
@@ -230,18 +231,132 @@ export default function Page() {
 // In-memory storage for demo mode
 let cardProgress: Record<string, any> = {};
 
-export async function getTopics(category?: string): Promise<Topic[]> {
+// Database functions
+async function getTopicsDB(category?: string): Promise<Topic[]> {
+  let sql = 'SELECT * FROM topics';
+  const params: string[] = [];
+  
+  if (category && category !== 'all') {
+    sql += ' WHERE category = $1';
+    params.push(category);
+  }
+  
+  sql += ' ORDER BY created_at DESC';
+  
+  const result = await query(sql, params);
+  return result.rows as Topic[];
+}
+
+async function getTopicBySlugDB(slug: string): Promise<Topic | null> {
+  const result = await query('SELECT * FROM topics WHERE slug = $1', [slug]);
+  return result.rows[0] as Topic || null;
+}
+
+async function getFlashcardsWithProgressDB(): Promise<FlashcardWithProgress[]> {
+  const result = await query(`
+    SELECT f.*, 
+      json_build_object(
+        'id', ucp.id,
+        'card_id', ucp.card_id,
+        'repetition', ucp.repetition,
+        'interval_days', ucp.interval_days,
+        'easiness_factor', ucp.easiness_factor,
+        'last_reviewed_at', ucp.last_reviewed_at,
+        'next_review_date', ucp.next_review_date,
+        'total_reviews', ucp.total_reviews,
+        'quality_history', ucp.quality_history,
+        'created_at', ucp.created_at
+      ) as progress
+    FROM flashcards f
+    LEFT JOIN user_card_progress ucp ON f.id = ucp.card_id
+  `);
+  
+  return result.rows.map(row => ({
+    ...row,
+    progress: row.progress?.id ? row.progress : undefined,
+  })) as FlashcardWithProgress[];
+}
+
+async function getDueFlashcardsDB(): Promise<FlashcardWithProgress[]> {
+  const result = await query(`
+    SELECT f.*, 
+      json_build_object(
+        'id', ucp.id,
+        'card_id', ucp.card_id,
+        'repetition', ucp.repetition,
+        'interval_days', ucp.interval_days,
+        'easiness_factor', ucp.easiness_factor,
+        'last_reviewed_at', ucp.last_reviewed_at,
+        'next_review_date', ucp.next_review_date,
+        'total_reviews', ucp.total_reviews,
+        'quality_history', ucp.quality_history,
+        'created_at', ucp.created_at
+      ) as progress
+    FROM flashcards f
+    JOIN user_card_progress ucp ON f.id = ucp.card_id
+    WHERE ucp.next_review_date IS NULL 
+       OR ucp.next_review_date <= CURRENT_DATE
+    ORDER BY ucp.easiness_factor ASC
+  `);
+  
+  return result.rows.map(row => ({
+    ...row,
+    progress: row.progress?.id ? row.progress : undefined,
+  })) as FlashcardWithProgress[];
+}
+
+async function updateCardProgressDB(
+  cardId: string,
+  repetition: number,
+  intervalDays: number,
+  easinessFactor: number,
+  quality: number
+): Promise<void> {
+  await query(`
+    UPDATE user_card_progress 
+    SET 
+      repetition = $1,
+      interval_days = $2,
+      easiness_factor = $3,
+      last_reviewed_at = CURRENT_TIMESTAMP,
+      next_review_date = CURRENT_DATE + INTERVAL '${intervalDays} days',
+      total_reviews = total_reviews + 1,
+      quality_history = array_append(quality_history, $4)
+    WHERE card_id = $5
+  `, [repetition, intervalDays, easinessFactor, quality, cardId]);
+}
+
+async function getStatsDB() {
+  const topicsResult = await query('SELECT COUNT(*) as total FROM topics');
+  const masteredResult = await query(`
+    SELECT COUNT(*) as count FROM user_card_progress 
+    WHERE interval_days >= 5
+  `);
+  const dueResult = await query(`
+    SELECT COUNT(*) as count FROM user_card_progress 
+    WHERE next_review_date IS NULL OR next_review_date <= CURRENT_DATE
+  `);
+  
+  return {
+    totalTopics: parseInt(topicsResult.rows[0].total),
+    masteredCards: parseInt(masteredResult.rows[0].count),
+    dueToday: parseInt(dueResult.rows[0].count),
+  };
+}
+
+// Sample data functions
+async function getTopicsSample(category?: string): Promise<Topic[]> {
   if (category && category !== 'all') {
     return sampleTopics.filter(t => t.category === category);
   }
   return sampleTopics;
 }
 
-export async function getTopicBySlug(slug: string): Promise<Topic | null> {
+async function getTopicBySlugSample(slug: string): Promise<Topic | null> {
   return sampleTopics.find(t => t.slug === slug) || null;
 }
 
-export async function getFlashcardsWithProgress(): Promise<FlashcardWithProgress[]> {
+async function getFlashcardsWithProgressSample(): Promise<FlashcardWithProgress[]> {
   return sampleFlashcards.map(card => ({
     ...card,
     progress: cardProgress[card.id] || {
@@ -259,15 +374,15 @@ export async function getFlashcardsWithProgress(): Promise<FlashcardWithProgress
   }));
 }
 
-export async function getDueFlashcards(): Promise<FlashcardWithProgress[]> {
-  const cards = await getFlashcardsWithProgress();
+async function getDueFlashcardsSample(): Promise<FlashcardWithProgress[]> {
+  const cards = await getFlashcardsWithProgressSample();
   return cards.filter(c => {
     if (!c.progress?.next_review_date) return true;
     return c.progress.next_review_date <= new Date().toISOString().split('T')[0];
   });
 }
 
-export async function updateCardProgress(
+async function updateCardProgressSample(
   cardId: string,
   repetition: number,
   intervalDays: number,
@@ -302,12 +417,85 @@ export async function updateCardProgress(
   };
 }
 
-export async function getStats() {
+async function getStatsSample() {
   return {
     totalTopics: sampleTopics.length,
     masteredCards: Object.values(cardProgress).filter((p: any) => p.interval_days >= 5).length,
-    dueToday: (await getDueFlashcards()).length,
+    dueToday: (await getDueFlashcardsSample()).length,
   };
+}
+
+// Export functions that choose between DB and sample
+export async function getTopics(category?: string): Promise<Topic[]> {
+  if (isDatabaseConfigured()) {
+    try {
+      return await getTopicsDB(category);
+    } catch (e) {
+      console.warn('DB error, using sample data:', e);
+    }
+  }
+  return getTopicsSample(category);
+}
+
+export async function getTopicBySlug(slug: string): Promise<Topic | null> {
+  if (isDatabaseConfigured()) {
+    try {
+      return await getTopicBySlugDB(slug);
+    } catch (e) {
+      console.warn('DB error, using sample data:', e);
+    }
+  }
+  return getTopicBySlugSample(slug);
+}
+
+export async function getFlashcardsWithProgress(): Promise<FlashcardWithProgress[]> {
+  if (isDatabaseConfigured()) {
+    try {
+      return await getFlashcardsWithProgressDB();
+    } catch (e) {
+      console.warn('DB error, using sample data:', e);
+    }
+  }
+  return getFlashcardsWithProgressSample();
+}
+
+export async function getDueFlashcards(): Promise<FlashcardWithProgress[]> {
+  if (isDatabaseConfigured()) {
+    try {
+      return await getDueFlashcardsDB();
+    } catch (e) {
+      console.warn('DB error, using sample data:', e);
+    }
+  }
+  return getDueFlashcardsSample();
+}
+
+export async function updateCardProgress(
+  cardId: string,
+  repetition: number,
+  intervalDays: number,
+  easinessFactor: number,
+  quality: number
+): Promise<void> {
+  if (isDatabaseConfigured()) {
+    try {
+      return await updateCardProgressDB(cardId, repetition, intervalDays, easinessFactor, quality);
+    } catch (e) {
+      console.warn('DB error, using sample data:', e);
+    }
+  }
+  return updateCardProgressSample(cardId, repetition, intervalDays, easinessFactor, quality);
+}
+
+export async function getStats() {
+  if (isDatabaseConfigured()) {
+    try {
+      return await getStatsDB();
+    } catch (e) {
+      console.warn('DB error, using sample data:', e);
+    }
+  }
+  return getStatsSample();
 }
 
 export async function getCategoryDistribution() {
