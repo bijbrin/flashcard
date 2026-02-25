@@ -1,4 +1,4 @@
-import { researchGitHubTopics } from './kimi';
+import { researchGitHubTopics } from './openai';
 import { Category } from '@/types';
 
 const CATEGORY_QUERIES: Record<Category, string[]> = {

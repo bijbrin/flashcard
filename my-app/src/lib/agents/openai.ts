@@ -1,41 +1,42 @@
 /**
- * Kimi Coding API Client
- * Using kimi.com/code API
+ * OpenAI API Client
  */
 
-const KIMI_API_URL = 'https://api.kimi.com/coding/v1';
-const KIMI_API_KEY = process.env.KIMI_API_KEY || '';
+const OPENAI_API_URL = 'https://api.openai.com/v1';
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
 
-interface KimiMessage {
+interface OpenAIMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
 }
 
-interface KimiCompletionOptions {
+interface OpenAICompletionOptions {
   model?: string;
-  messages: KimiMessage[];
+  messages: OpenAIMessage[];
   temperature?: number;
   max_tokens?: number;
+  response_format?: { type: 'json_object' };
 }
 
-export async function kimiCompletion(options: KimiCompletionOptions) {
-  const response = await fetch(`${KIMI_API_URL}/chat/completions`, {
+export async function openaiCompletion(options: OpenAICompletionOptions) {
+  const response = await fetch(`${OPENAI_API_URL}/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${KIMI_API_KEY}`,
+      'Authorization': `Bearer ${OPENAI_API_KEY}`,
     },
     body: JSON.stringify({
-      model: options.model || 'kimi-for-coding',
+      model: options.model || 'gpt-4o-mini',
       messages: options.messages,
       temperature: options.temperature ?? 0.7,
       max_tokens: options.max_tokens ?? 4000,
+      response_format: options.response_format,
     }),
   });
 
   if (!response.ok) {
     const error = await response.text();
-    throw new Error(`Kimi API error: ${error}`);
+    throw new Error(`OpenAI API error: ${error}`);
   }
 
   const data = await response.json();
@@ -72,20 +73,16 @@ ${docsContent.slice(0, 8000)}
 
 Source: ${source}
 
-Return as JSON array: { topics: [...] }`;
+Return as JSON: { "topics": [...] }`;
 
-  const result = await kimiCompletion({
+  const result = await openaiCompletion({
     messages: [
       { role: 'system', content: 'You are a technical curriculum designer specializing in React and Next.js. Always respond with valid JSON.' },
       { role: 'user', content: prompt },
     ],
+    response_format: { type: 'json_object' },
   });
 
-  // Extract JSON from response (in case there's markdown formatting)
-  const jsonMatch = result.match(/\{[\s\S]*\}/);
-  if (jsonMatch) {
-    return JSON.parse(jsonMatch[0]);
-  }
   return JSON.parse(result);
 }
 
@@ -122,20 +119,16 @@ Rate: Easy / Medium / Hard
 STEP 5 — VALIDATE
 "Would a developer feel genuinely tested after seeing this card?"
 
-Return as JSON: { flashcards: [{ card_front, card_back, difficulty, has_code_snippet, code_snippet, memory_hook }] }`;
+Return as JSON: { "flashcards": [{ "card_front", "card_back", "difficulty", "has_code_snippet", "code_snippet", "memory_hook" }] }`;
 
-  const result = await kimiCompletion({
+  const result = await openaiCompletion({
     messages: [
       { role: 'system', content: 'You are a spaced repetition flashcard designer. Always respond with valid JSON.' },
       { role: 'user', content: prompt },
     ],
+    response_format: { type: 'json_object' },
   });
 
-  // Extract JSON from response
-  const jsonMatch = result.match(/\{[\s\S]*\}/);
-  if (jsonMatch) {
-    return JSON.parse(jsonMatch[0]);
-  }
   return JSON.parse(result);
 }
 
@@ -156,19 +149,15 @@ Extract 3-5 topics that represent REAL developer pain points. For each:
 - better_approach: The production-ready solution
 - code_snippet: Correct implementation
 
-Return as JSON: { topics: [...] }`;
+Return as JSON: { "topics": [...] }`;
 
-  const result = await kimiCompletion({
+  const result = await openaiCompletion({
     messages: [
       { role: 'system', content: 'You are a senior React/Next.js engineer analyzing GitHub trends. Always respond with valid JSON.' },
       { role: 'user', content: prompt },
     ],
+    response_format: { type: 'json_object' },
   });
 
-  // Extract JSON from response
-  const jsonMatch = result.match(/\{[\s\S]*\}/);
-  if (jsonMatch) {
-    return JSON.parse(jsonMatch[0]);
-  }
   return JSON.parse(result);
 }

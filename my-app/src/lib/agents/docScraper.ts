@@ -1,5 +1,5 @@
 import { scrapeUrl, crawlDocs } from './firecrawl';
-import { extractTopicsFromDocs } from './kimi';
+import { extractTopicsFromDocs } from './openai';
 import { Topic } from '@/types';
 
 const DOC_SOURCES = [

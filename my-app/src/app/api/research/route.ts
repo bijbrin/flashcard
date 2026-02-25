@@ -16,10 +16,10 @@ const CATEGORIES: Category[] = [
 
 export async function POST(request: Request) {
   // Check API keys
-  if (!process.env.KIMI_API_KEY) {
+  if (!process.env.OPENAI_API_KEY) {
     return NextResponse.json({ 
-      error: 'KIMI_API_KEY not configured',
-      message: 'Please add KIMI_API_KEY to environment variables'
+      error: 'OPENAI_API_KEY not configured',
+      message: 'Please add OPENAI_API_KEY to environment variables'
     }, { status: 500 });
   }
 

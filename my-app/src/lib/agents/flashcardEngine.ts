@@ -1,4 +1,4 @@
-import { generateFlashcards } from './kimi';
+import { generateFlashcards } from './openai';
 import { Flashcard } from '@/types';
 
 /**
