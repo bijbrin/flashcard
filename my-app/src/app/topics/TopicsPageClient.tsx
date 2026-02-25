@@ -65,7 +65,7 @@ export function TopicsPageClient({ initialTopics }: TopicsPageClientProps) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer dev-secret',
+          'Authorization': 'Bearer mysimplecronsecret',
         },
       });
       
