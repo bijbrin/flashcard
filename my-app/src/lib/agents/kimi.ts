@@ -1,9 +1,9 @@
 /**
- * Kimi API Client for content generation
- * Using Moonshot AI's Kimi API
+ * Kimi Coding API Client
+ * Using kimi.com/code API
  */
 
-const KIMI_API_URL = 'https://api.moonshot.cn/v1';
+const KIMI_API_URL = 'https://kimi.com/code/api/v1';
 const KIMI_API_KEY = process.env.KIMI_API_KEY || '';
 
 interface KimiMessage {
@@ -16,7 +16,6 @@ interface KimiCompletionOptions {
   messages: KimiMessage[];
   temperature?: number;
   max_tokens?: number;
-  response_format?: { type: 'json_object' };
 }
 
 export async function kimiCompletion(options: KimiCompletionOptions) {
@@ -27,11 +26,10 @@ export async function kimiCompletion(options: KimiCompletionOptions) {
       'Authorization': `Bearer ${KIMI_API_KEY}`,
     },
     body: JSON.stringify({
-      model: options.model || 'moonshot-v1-128k',
+      model: options.model || 'kimi-coding',
       messages: options.messages,
       temperature: options.temperature ?? 0.7,
       max_tokens: options.max_tokens ?? 4000,
-      response_format: options.response_format,
     }),
   });
 
@@ -78,12 +76,16 @@ Return as JSON array: { topics: [...] }`;
 
   const result = await kimiCompletion({
     messages: [
-      { role: 'system', content: 'You are a technical curriculum designer specializing in React and Next.js.' },
+      { role: 'system', content: 'You are a technical curriculum designer specializing in React and Next.js. Always respond with valid JSON.' },
       { role: 'user', content: prompt },
     ],
-    response_format: { type: 'json_object' },
   });
 
+  // Extract JSON from response (in case there's markdown formatting)
+  const jsonMatch = result.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    return JSON.parse(jsonMatch[0]);
+  }
   return JSON.parse(result);
 }
 
@@ -124,12 +126,16 @@ Return as JSON: { flashcards: [{ card_front, card_back, difficulty, has_code_sni
 
   const result = await kimiCompletion({
     messages: [
-      { role: 'system', content: 'You are a spaced repetition flashcard designer.' },
+      { role: 'system', content: 'You are a spaced repetition flashcard designer. Always respond with valid JSON.' },
       { role: 'user', content: prompt },
     ],
-    response_format: { type: 'json_object' },
   });
 
+  // Extract JSON from response
+  const jsonMatch = result.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    return JSON.parse(jsonMatch[0]);
+  }
   return JSON.parse(result);
 }
 
@@ -143,7 +149,6 @@ Search context: ${query}
 
 Extract 3-5 topics that represent REAL developer pain points. For each:
 - title: Specific problem/solution name
-- category: One of [react-hooks, nextjs-core, third-party-api, server-side, advanced, ai-integration]
 - difficulty: 3-5
 - plain_english_summary: Clear explanation
 - why_it_matters: Why developers struggle with this
@@ -155,11 +160,15 @@ Return as JSON: { topics: [...] }`;
 
   const result = await kimiCompletion({
     messages: [
-      { role: 'system', content: 'You are a senior React/Next.js engineer analyzing GitHub trends.' },
+      { role: 'system', content: 'You are a senior React/Next.js engineer analyzing GitHub trends. Always respond with valid JSON.' },
       { role: 'user', content: prompt },
     ],
-    response_format: { type: 'json_object' },
   });
 
+  // Extract JSON from response
+  const jsonMatch = result.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    return JSON.parse(jsonMatch[0]);
+  }
   return JSON.parse(result);
 }
