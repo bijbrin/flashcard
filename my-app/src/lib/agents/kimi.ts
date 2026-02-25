@@ -3,7 +3,7 @@
  * Using kimi.com/code API
  */
 
-const KIMI_API_URL = 'https://kimi.com/code/api/v1';
+const KIMI_API_URL = 'https://api.kimi.com/coding/v1';
 const KIMI_API_KEY = process.env.KIMI_API_KEY || '';
 
 interface KimiMessage {
