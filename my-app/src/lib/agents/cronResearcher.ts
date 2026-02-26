@@ -48,11 +48,13 @@ export async function researchNewTopics(
   
   const result = await researchGitHubTopics(query);
   
-  // Return up to 'count' topics
-  return (result.topics || []).slice(0, count).map((t: any) => ({
+  // Return up to 'count' topics with all required fields
+  return (result.topics || []).slice(0, count).map((t: any, index: number) => ({
     ...t,
     category,
-    source_urls: ['https://github.com'],
+    slug: t.slug || t.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + '-' + Date.now() + '-' + index,
+    source_urls: t.source_urls || ['https://github.com'],
+    related_topic_ids: t.related_topic_ids || [],
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }));

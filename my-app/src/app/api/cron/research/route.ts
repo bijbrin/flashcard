@@ -1,6 +1,17 @@
 import { NextResponse } from 'next/server';
 import { researchNewTopics } from '@/lib/agents/cronResearcher';
 import { generateFlashcardsForTopics } from '@/lib/agents/flashcardEngine';
+import { query, isDatabaseConfigured } from '@/lib/db';
+import { Category } from '@/types';
+
+const CATEGORIES: Category[] = [
+  'react-hooks',
+  'nextjs-core',
+  'third-party-api',
+  'server-side',
+  'advanced',
+  'ai-integration',
+];
 
 /**
  * Cron endpoint to trigger research agent
@@ -15,11 +26,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  // Check database
+  if (!isDatabaseConfigured()) {
+    return NextResponse.json(
+      { error: 'Database not configured' },
+      { status: 500 }
+    );
+  }
+
   try {
     console.log('Starting cron research job...');
 
+    // Pick a random category to research
+    const category = CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)];
+    console.log(`Researching category: ${category}`);
+
     // Research new topics from GitHub
-    const newTopics = await researchNewTopics();
+    const newTopics = await researchNewTopics(category, 2);
 
     if (newTopics.length === 0) {
       return NextResponse.json({
@@ -29,17 +52,94 @@ export async function POST(request: Request) {
       });
     }
 
-    // Generate flashcards for new topics
-    const flashcards = await generateFlashcardsForTopics(newTopics);
+    // Insert topics into database
+    const insertedTopics = [];
+    for (const topic of newTopics) {
+      const result = await query(
+        `INSERT INTO topics (
+          title, slug, category, difficulty, plain_english_summary,
+          when_to_use, when_not_to_use, code_snippet, code_explanation,
+          real_world_example, gotchas, related_topic_ids, source_urls,
+          created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        ON CONFLICT (slug) DO NOTHING
+        RETURNING *`,
+        [
+          topic.title,
+          topic.slug || topic.title.toLowerCase().replace(/\s+/g, '-'),
+          topic.category,
+          topic.difficulty,
+          topic.plain_english_summary,
+          topic.when_to_use,
+          topic.when_not_to_use,
+          topic.code_snippet,
+          topic.code_explanation,
+          topic.real_world_example,
+          JSON.stringify(topic.gotchas || []),
+          JSON.stringify(topic.related_topic_ids || []),
+          JSON.stringify(topic.source_urls || []),
+          new Date().toISOString(),
+          new Date().toISOString(),
+        ]
+      );
+      
+      if (result.rows[0]) {
+        insertedTopics.push(result.rows[0]);
+      }
+    }
 
-    // TODO: Insert into database
-    console.log(`Generated ${newTopics.length} topics and ${flashcards.length} flashcards`);
+    // Generate and insert flashcards for new topics
+    const flashcards = await generateFlashcardsForTopics(insertedTopics);
+    let flashcardsInserted = 0;
+
+    for (const flashcard of flashcards) {
+      await query(
+        `INSERT INTO flashcards (
+          id, topic_id, card_front, card_back, difficulty,
+          has_code_snippet, code_snippet, memory_hook, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [
+          flashcard.id,
+          flashcard.topic_id,
+          flashcard.card_front,
+          flashcard.card_back,
+          flashcard.difficulty,
+          flashcard.has_code_snippet,
+          flashcard.code_snippet,
+          flashcard.memory_hook,
+          new Date().toISOString(),
+        ]
+      );
+      flashcardsInserted++;
+
+      // Create initial progress record
+      await query(
+        `INSERT INTO user_card_progress (
+          card_id, repetition, interval_days, easiness_factor,
+          last_reviewed_at, next_review_date, total_reviews, quality_history, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        ON CONFLICT (card_id) DO NOTHING`,
+        [
+          flashcard.id,
+          0,
+          1,
+          2.5,
+          null,
+          null,
+          0,
+          '[]',
+          new Date().toISOString(),
+        ]
+      );
+    }
+
+    console.log(`Inserted ${insertedTopics.length} topics and ${flashcardsInserted} flashcards`);
 
     return NextResponse.json({
       success: true,
-      topics_added: newTopics.length,
-      flashcards_added: flashcards.length,
-      topics: newTopics.map(t => t.title),
+      topics_added: insertedTopics.length,
+      flashcards_added: flashcardsInserted,
+      topics: insertedTopics.map(t => t.title),
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
