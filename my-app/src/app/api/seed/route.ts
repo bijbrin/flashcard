@@ -168,6 +168,139 @@ startTransition(() => setExpensiveState(value));
 const deferredQuery = useDeferredValue(query);`,
     memory_hook: 'Transition = you start it. Deferred = React defers it.',
   },
+  {
+    topic_slug: 'partial-prerendering',
+    card_front: "What is Partial Prerendering (PPR) and when should you use it?",
+    card_back: 'PPR combines static and dynamic content in the same page. Static parts prerender at build time, dynamic parts render at request time. Use for pages with mostly static content but some dynamic data like e-commerce product pages.',
+    difficulty: 'medium',
+    has_code_snippet: true,
+    code_snippet: `export const experimental_ppr = true;
+
+export default async function Page() {
+  return (
+    <>
+      <StaticHeader />
+      <Suspense fallback={<Skeleton />}>
+        <DynamicContent />
+      </Suspense>
+    </>
+  );
+}`,
+    memory_hook: 'PPR = Static shell + Dynamic islands',
+  },
+  {
+    topic_slug: 'partial-prerendering',
+    card_front: "What are the requirements for using PPR in Next.js?",
+    card_back: '1. Enable experimental_ppr flag. 2. Use Suspense boundaries to define static vs dynamic splits. 3. Dynamic content must be inside async components or Suspense. 4. Not compatible with all Next.js features.',
+    difficulty: 'easy',
+    has_code_snippet: false,
+    code_snippet: '',
+    memory_hook: 'Suspense boundaries define the split between static and dynamic.',
+  },
+  {
+    topic_slug: 'server-actions-optimistic',
+    card_front: "How does useOptimistic work with Server Actions?",
+    card_back: 'useOptimistic provides instant UI feedback before server confirms. You call addOptimistic with the expected result, UI updates immediately, then server response replaces it. Handle errors with rollback.',
+    difficulty: 'hard',
+    has_code_snippet: true,
+    code_snippet: `const [optimisticState, addOptimistic] = useOptimistic(
+  state,
+  (state, newItem) => [...state, newItem]
+);
+
+async function handleSubmit(formData) {
+  addOptimistic({ id: "temp", content });
+  await addItem(formData);
+}`,
+    memory_hook: 'Optimistic = Hope for the best, prepare for rollback.',
+  },
+  {
+    topic_slug: 'server-actions-optimistic',
+    card_front: "When should you NOT use optimistic UI?",
+    card_back: 'Avoid optimistic UI when: 1. Precise server state is required immediately. 2. High chance of conflicts. 3. Financial transactions where accuracy is critical. 4. When rollback would be confusing to users.',
+    difficulty: 'medium',
+    has_code_snippet: false,
+    code_snippet: '',
+    memory_hook: 'Optimistic UI = good for likes, bad for bank transfers.',
+  },
+  {
+    topic_slug: 'vercel-ai-streaming',
+    card_front: "What does the useChat hook from Vercel AI SDK handle automatically?",
+    card_back: 'useChat handles: message state management, streaming responses, input handling, form submission, error states, and loading states. You just render the messages and wire up the input.',
+    difficulty: 'easy',
+    has_code_snippet: true,
+    code_snippet: `const { messages, input, handleInputChange, handleSubmit } = useChat();
+
+return (
+  <form onSubmit={handleSubmit}>
+    <input value={input} onChange={handleInputChange} />
+    {messages.map(m => <div key={m.id}>{m.content}</div>)}
+  </form>
+);`,
+    memory_hook: 'useChat = All chat boilerplate handled for you.',
+  },
+  {
+    topic_slug: 'vercel-ai-streaming',
+    card_front: "When should you avoid streaming AI responses?",
+    card_back: 'Avoid streaming when: 1. Response is short and instant anyway. 2. You need the full response for processing. 3. Token usage tracking per request. 4. Simple one-shot calls where UX gain is minimal.',
+    difficulty: 'medium',
+    has_code_snippet: false,
+    code_snippet: '',
+    memory_hook: 'Streaming = UX win for chat, overhead for simple calls.',
+  },
+  {
+    topic_slug: 'turborepo-shared-packages',
+    card_front: "How do you share UI components across apps in Turborepo?",
+    card_back: 'Create a shared package in packages/ directory with proper exports. Use named exports for tree-shaking. Configure TypeScript project references. Import in apps using workspace protocol.',
+    difficulty: 'medium',
+    has_code_snippet: true,
+    code_snippet: `// packages/ui/package.json
+{
+  "name": "@repo/ui",
+  "exports": {
+    ".": "./src/index.ts",
+    "./button": "./src/button.tsx"
+  }
+}
+
+// apps/web/app/page.tsx
+import { Button } from "@repo/ui/button";`,
+    memory_hook: 'Named exports = tree-shaking friendly imports.',
+  },
+  {
+    topic_slug: 'turborepo-shared-packages',
+    card_front: "What are common pitfalls when setting up Turborepo shared packages?",
+    card_back: '1. Not configuring TypeScript project references. 2. Missing build pipeline for packages. 3. Version mismatches between apps. 4. Circular dependencies. 5. Not setting up proper exports field.',
+    difficulty: 'hard',
+    has_code_snippet: false,
+    code_snippet: '',
+    memory_hook: 'TS config, build pipeline, versions = the big three.',
+  },
+  {
+    topic_slug: 'stripe-webhooks',
+    card_front: "Why must you use req.text() instead of req.json() for Stripe webhooks?",
+    card_back: 'Stripe signature verification requires the exact raw body bytes. JSON parsing modifies the body (whitespace, encoding), breaking signature validation. Always use req.text() for webhooks.',
+    difficulty: 'medium',
+    has_code_snippet: true,
+    code_snippet: `export async function POST(req: Request) {
+  const payload = await req.text(); // NOT req.json()
+  const signature = headers().get("stripe-signature");
+  
+  const event = stripe.webhooks.constructEvent(
+    payload, signature, webhookSecret
+  );
+}`,
+    memory_hook: 'Raw body = signature intact. JSON parsing = broken signature.',
+  },
+  {
+    topic_slug: 'stripe-webhooks',
+    card_front: "How should you handle webhook retries idempotently?",
+    card_back: 'Store processed event IDs and check before processing. Use database transactions. Return 200 for processed events to stop retries. Handle the same event multiple times safely.',
+    difficulty: 'hard',
+    has_code_snippet: false,
+    code_snippet: '',
+    memory_hook: 'Idempotency = same result whether called once or many times.',
+  },
 ];
 
 /**
@@ -187,73 +320,73 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Check if data already exists
+    // Check existing topics and flashcards
     const existingTopics = await query('SELECT COUNT(*) as count FROM topics');
-    const existingCount = parseInt(existingTopics.rows[0].count);
+    const existingFlashcards = await query('SELECT COUNT(*) as count FROM flashcards');
+    const topicsCount = parseInt(existingTopics.rows[0].count);
+    const flashcardsCount = parseInt(existingFlashcards.rows[0].count);
 
-    if (existingCount > 0) {
-      return NextResponse.json({
-        message: 'Database already seeded',
-        topics_count: existingCount,
-      });
-    }
-
-    // Insert topics using parameterized queries
-    const insertedTopics = [];
-    for (const topic of sampleTopics) {
-      const result = await query(
-        `INSERT INTO topics (title, slug, category, difficulty, plain_english_summary, when_to_use, when_not_to_use, code_snippet, code_explanation, real_world_example, gotchas)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-         ON CONFLICT (slug) DO NOTHING
-         RETURNING id, slug`,
-        [
-          topic.title,
-          topic.slug,
-          topic.category,
-          topic.difficulty,
-          topic.plain_english_summary,
-          topic.when_to_use,
-          topic.when_not_to_use,
-          topic.code_snippet,
-          topic.code_explanation,
-          topic.real_world_example,
-          JSON.stringify(topic.gotchas),
-        ]
-      );
-      if (result.rows[0]) {
-        insertedTopics.push(result.rows[0]);
-      }
-    }
-
-    // Insert flashcards
+    let insertedTopics = [];
     let flashcardsInserted = 0;
-    for (const card of sampleFlashcards) {
-      const topicResult = await query('SELECT id FROM topics WHERE slug = $1', [card.topic_slug]);
-      if (topicResult.rows[0]) {
-        await query(
-          `INSERT INTO flashcards (topic_id, card_front, card_back, difficulty, has_code_snippet, code_snippet, memory_hook)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)
-           ON CONFLICT DO NOTHING`,
+
+    // Insert topics only if none exist
+    if (topicsCount === 0) {
+      for (const topic of sampleTopics) {
+        const result = await query(
+          `INSERT INTO topics (title, slug, category, difficulty, plain_english_summary, when_to_use, when_not_to_use, code_snippet, code_explanation, real_world_example, gotchas)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+           ON CONFLICT (slug) DO NOTHING
+           RETURNING id, slug`,
           [
-            topicResult.rows[0].id,
-            card.card_front,
-            card.card_back,
-            card.difficulty,
-            card.has_code_snippet,
-            card.code_snippet,
-            card.memory_hook,
+            topic.title,
+            topic.slug,
+            topic.category,
+            topic.difficulty,
+            topic.plain_english_summary,
+            topic.when_to_use,
+            topic.when_not_to_use,
+            topic.code_snippet,
+            topic.code_explanation,
+            topic.real_world_example,
+            JSON.stringify(topic.gotchas),
           ]
         );
-        flashcardsInserted++;
+        if (result.rows[0]) {
+          insertedTopics.push(result.rows[0]);
+        }
       }
     }
 
-    // Initialize user progress for all flashcards
-    await query(`
-      INSERT INTO user_card_progress (card_id, repetition, interval_days, easiness_factor)
-      SELECT id, 0, 1, 2.5 FROM flashcards
-      ON CONFLICT (card_id) DO NOTHING
-    `);
+    // Insert flashcards if none exist
+    if (flashcardsCount === 0) {
+      for (const card of sampleFlashcards) {
+        const topicResult = await query('SELECT id FROM topics WHERE slug = $1', [card.topic_slug]);
+        if (topicResult.rows[0]) {
+          await query(
+            `INSERT INTO flashcards (topic_id, card_front, card_back, difficulty, has_code_snippet, code_snippet, memory_hook)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
+             ON CONFLICT DO NOTHING`,
+            [
+              topicResult.rows[0].id,
+              card.card_front,
+              card.card_back,
+              card.difficulty,
+              card.has_code_snippet,
+              card.code_snippet,
+              card.memory_hook,
+            ]
+          );
+          flashcardsInserted++;
+        }
+      }
+
+      // Initialize user progress for all flashcards
+      await query(`
+        INSERT INTO user_card_progress (card_id, repetition, interval_days, easiness_factor)
+        SELECT id, 0, 1, 2.5 FROM flashcards
+        ON CONFLICT (card_id) DO NOTHING
+      `);
+    }
 
     // Get final counts
     const finalTopics = await query('SELECT COUNT(*) as count FROM topics');
@@ -263,6 +396,7 @@ export async function POST(request: Request) {
       success: true,
       message: 'Database seeded successfully',
       topics_inserted: insertedTopics.length,
+      flashcards_inserted: flashcardsInserted,
       total_topics: parseInt(finalTopics.rows[0].count),
       total_flashcards: parseInt(finalFlashcards.rows[0].count),
     });
