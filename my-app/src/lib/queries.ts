@@ -233,7 +233,7 @@ let cardProgress: Record<string, any> = {};
 
 // Database functions
 async function getTopicsDB(category?: string): Promise<Topic[]> {
-  let sql = 'SELECT * FROM topics';
+  let sql = 'SELECT * FROM new_topic';
   const params: string[] = [];
 
   if (category && category !== 'all') {
@@ -246,10 +246,10 @@ async function getTopicsDB(category?: string): Promise<Topic[]> {
   try {
     const result = await query(sql, params);
     if (result.rows.length === 0) {
-      console.log('DB: topics table is empty, using sample data');
+      console.log('DB: new_topic table is empty, using sample data');
       return getTopicsSample(category);
     }
-    console.log(`DB: loaded ${result.rows.length} topics`);
+    console.log(`DB: loaded ${result.rows.length} topics from new_topic`);
     return result.rows as Topic[];
   } catch (e: any) {
     console.error('DB Error (getTopics):', e.message);
@@ -259,7 +259,7 @@ async function getTopicsDB(category?: string): Promise<Topic[]> {
 
 async function getTopicBySlugDB(slug: string): Promise<Topic | null> {
   try {
-    const result = await query('SELECT * FROM topics WHERE slug = $1', [slug]);
+    const result = await query('SELECT * FROM new_topic WHERE slug = $1', [slug]);
     return result.rows[0] as Topic || null;
   } catch (e) {
     return null;
@@ -282,7 +282,7 @@ async function getFlashcardsWithProgressDB(): Promise<FlashcardWithProgress[]> {
           'quality_history', ucp.quality_history,
           'created_at', ucp.created_at
         ) as progress
-      FROM flashcards f
+      FROM flashcard f
       LEFT JOIN user_card_progress ucp ON f.id = ucp.card_id
     `);
     if (result.rows.length === 0) {
@@ -313,7 +313,7 @@ async function getDueFlashcardsDB(): Promise<FlashcardWithProgress[]> {
           'quality_history', ucp.quality_history,
           'created_at', ucp.created_at
         ) as progress
-      FROM flashcards f
+      FROM flashcard f
       JOIN user_card_progress ucp ON f.id = ucp.card_id
       WHERE ucp.next_review_date IS NULL 
          OR ucp.next_review_date <= CURRENT_DATE
@@ -354,7 +354,7 @@ async function updateCardProgressDB(
 
 async function getStatsDB() {
   try {
-    const topicsResult = await query('SELECT COUNT(*) as total FROM topics');
+    const topicsResult = await query('SELECT COUNT(*) as total FROM new_topic');
     const masteredResult = await query(`
       SELECT COUNT(*) as count FROM user_card_progress 
       WHERE interval_days >= 5

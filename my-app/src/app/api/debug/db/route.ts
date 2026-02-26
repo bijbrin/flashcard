@@ -11,15 +11,15 @@ export async function GET() {
 
   try {
     // Check topics table
-    const topicsResult = await query('SELECT COUNT(*) as count FROM topics');
+    const topicsResult = await query('SELECT COUNT(*) as count FROM new_topic');
     const topicsCount = parseInt(topicsResult.rows[0].count);
 
     // Check flashcards table
-    const flashcardsResult = await query('SELECT COUNT(*) as count FROM flashcards');
+    const flashcardsResult = await query('SELECT COUNT(*) as count FROM flashcard');
     const flashcardsCount = parseInt(flashcardsResult.rows[0].count);
 
     // Get recent topics
-    const recentTopics = await query('SELECT title, category, created_at FROM topics ORDER BY created_at DESC LIMIT 5');
+    const recentTopics = await query('SELECT title, category, created_at FROM new_topic ORDER BY created_at DESC LIMIT 5');
 
     return NextResponse.json({
       status: 'ok',

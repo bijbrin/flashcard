@@ -188,7 +188,7 @@ export async function POST(request: Request) {
 
   try {
     // Check if data already exists
-    const existingTopics = await query('SELECT COUNT(*) as count FROM topics');
+    const existingTopics = await query('SELECT COUNT(*) as count FROM new_topic');
     const existingCount = parseInt(existingTopics.rows[0].count);
 
     if (existingCount > 0) {
@@ -202,7 +202,7 @@ export async function POST(request: Request) {
     const insertedTopics = [];
     for (const topic of sampleTopics) {
       const result = await query(
-        `INSERT INTO topics (title, slug, category, difficulty, plain_english_summary, when_to_use, when_not_to_use, code_snippet, code_explanation, real_world_example, gotchas)
+        `INSERT INTO new_topic (title, slug, category, difficulty, plain_english_summary, when_to_use, when_not_to_use, code_snippet, code_explanation, real_world_example, gotchas)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
          ON CONFLICT (slug) DO NOTHING
          RETURNING id, slug`,
@@ -228,10 +228,10 @@ export async function POST(request: Request) {
     // Insert flashcards
     let flashcardsInserted = 0;
     for (const card of sampleFlashcards) {
-      const topicResult = await query('SELECT id FROM topics WHERE slug = $1', [card.topic_slug]);
+      const topicResult = await query('SELECT id FROM new_topic WHERE slug = $1', [card.topic_slug]);
       if (topicResult.rows[0]) {
         await query(
-          `INSERT INTO flashcards (topic_id, card_front, card_back, difficulty, has_code_snippet, code_snippet, memory_hook)
+          `INSERT INTO flashcard (topic_id, card_front, card_back, difficulty, has_code_snippet, code_snippet, memory_hook)
            VALUES ($1, $2, $3, $4, $5, $6, $7)
            ON CONFLICT DO NOTHING`,
           [
@@ -256,8 +256,8 @@ export async function POST(request: Request) {
     `);
 
     // Get final counts
-    const finalTopics = await query('SELECT COUNT(*) as count FROM topics');
-    const finalFlashcards = await query('SELECT COUNT(*) as count FROM flashcards');
+    const finalTopics = await query('SELECT COUNT(*) as count FROM new_topic');
+    const finalFlashcards = await query('SELECT COUNT(*) as count FROM flashcard');
 
     return NextResponse.json({
       success: true,

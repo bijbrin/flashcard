@@ -56,7 +56,7 @@ export async function POST(request: Request) {
     const insertedTopics = [];
     for (const topic of newTopics) {
       const result = await query(
-        `INSERT INTO topics (
+        `INSERT INTO new_topic (
           title, slug, category, difficulty, plain_english_summary,
           when_to_use, when_not_to_use, code_snippet, code_explanation,
           real_world_example, gotchas, related_topic_ids, source_urls,
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
             const flashcardId = crypto.randomUUID();
             
             await query(
-              `INSERT INTO flashcards (
+              `INSERT INTO flashcard (
                 id, topic_id, card_front, card_back, difficulty,
                 has_code_snippet, code_snippet, memory_hook, created_at
               ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
