@@ -333,8 +333,8 @@ export async function POST(request: Request) {
     if (topicsCount === 0) {
       for (const topic of sampleTopics) {
         const result = await query(
-          `INSERT INTO topics (title, slug, category, difficulty, plain_english_summary, when_to_use, when_not_to_use, code_snippet, code_explanation, real_world_example, gotchas)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          `INSERT INTO topics (title, slug, category, difficulty, plain_english_summary, when_to_use, when_not_to_use, code_snippet, code_explanation, real_world_example, gotchas, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
            ON CONFLICT (slug) DO NOTHING
            RETURNING id, slug`,
           [
@@ -363,8 +363,8 @@ export async function POST(request: Request) {
         const topicResult = await query('SELECT id FROM topics WHERE slug = $1', [card.topic_slug]);
         if (topicResult.rows[0]) {
           await query(
-            `INSERT INTO flashcards (topic_id, card_front, card_back, difficulty, has_code_snippet, code_snippet, memory_hook)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
+            `INSERT INTO flashcards (topic_id, card_front, card_back, difficulty, has_code_snippet, code_snippet, memory_hook, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
              ON CONFLICT DO NOTHING`,
             [
               topicResult.rows[0].id,
@@ -382,8 +382,8 @@ export async function POST(request: Request) {
 
       // Initialize user progress for all flashcards
       await query(`
-        INSERT INTO user_card_progress (card_id, repetition, interval_days, easiness_factor)
-        SELECT id, 0, 1, 2.5 FROM flashcards
+        INSERT INTO user_card_progress (card_id, repetition, interval_days, easiness_factor, created_at)
+        SELECT id, 0, 1, 2.5, NOW() FROM flashcards
         ON CONFLICT (card_id) DO NOTHING
       `);
     }
