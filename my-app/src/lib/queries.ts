@@ -235,23 +235,24 @@ let cardProgress: Record<string, any> = {};
 async function getTopicsDB(category?: string): Promise<Topic[]> {
   let sql = 'SELECT * FROM topics';
   const params: string[] = [];
-  
+
   if (category && category !== 'all') {
     sql += ' WHERE category = $1';
     params.push(category);
   }
-  
+
   sql += ' ORDER BY created_at DESC';
-  
+
   try {
     const result = await query(sql, params);
     if (result.rows.length === 0) {
-      // Database is empty, return sample data
+      console.log('DB: topics table is empty, using sample data');
       return getTopicsSample(category);
     }
+    console.log(`DB: loaded ${result.rows.length} topics`);
     return result.rows as Topic[];
-  } catch (e) {
-    // Table doesn't exist or other error, return sample data
+  } catch (e: any) {
+    console.error('DB Error (getTopics):', e.message);
     return getTopicsSample(category);
   }
 }
