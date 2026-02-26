@@ -188,7 +188,7 @@ export async function POST(request: Request) {
 
   try {
     // Check if data already exists
-    const existingTopics = await query('SELECT COUNT(*) as count FROM new_topic');
+    const existingTopics = await query('SELECT COUNT(*) as count FROM topics');
     const existingCount = parseInt(existingTopics.rows[0].count);
 
     if (existingCount > 0) {
@@ -202,7 +202,7 @@ export async function POST(request: Request) {
     const insertedTopics = [];
     for (const topic of sampleTopics) {
       const result = await query(
-        `INSERT INTO new_topic (title, slug, category, difficulty, plain_english_summary, when_to_use, when_not_to_use, code_snippet, code_explanation, real_world_example, gotchas)
+        `INSERT INTO topics (title, slug, category, difficulty, plain_english_summary, when_to_use, when_not_to_use, code_snippet, code_explanation, real_world_example, gotchas)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
          ON CONFLICT (slug) DO NOTHING
          RETURNING id, slug`,
