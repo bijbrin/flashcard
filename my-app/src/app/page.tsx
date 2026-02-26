@@ -1,6 +1,6 @@
 import { ProgressRing } from "@/components/ProgressRing";
 import { SpacedRepBar } from "@/components/SpacedRepBar";
-import { ResearchProgress } from "@/components/ResearchProgress";
+import { ResearchProgressClient } from "@/components/ResearchProgressClient";
 import { ResearchButton } from "@/components/ResearchButton";
 import { CATEGORY_CONFIG, Category } from "@/types";
 import { getStats, getDueFlashcards } from "@/lib/queries";
@@ -147,23 +147,5 @@ export default async function DashboardPage() {
       {/* Spaced Repetition Bar */}
       <SpacedRepBar dueCounts={dueCounts} />
     </div>
-  );
-}
-
-// Client component for research progress
-'use client';
-
-import { useResearchProgress } from "@/hooks/useResearchProgress";
-
-function ResearchProgressClient() {
-  const { activeJob, clearJob } = useResearchProgress();
-  
-  if (!activeJob) return null;
-  
-  return (
-    <ResearchProgress 
-      job={activeJob} 
-      onDismiss={activeJob.status !== 'running' ? clearJob : undefined}
-    />
   );
 }
