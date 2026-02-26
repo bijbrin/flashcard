@@ -536,12 +536,109 @@ export async function getCategoryDistribution() {
   return distribution;
 }
 
-export async function insertTopic(topic: Partial<Topic>): Promise<Topic> {
+// Database insert functions
+async function insertTopicDB(topic: Partial<Topic>): Promise<Topic> {
+  const result = await query(
+    `INSERT INTO topics (
+      title, slug, category, difficulty, plain_english_summary,
+      when_to_use, when_not_to_use, code_snippet, code_explanation,
+      real_world_example, gotchas, related_topic_ids, source_urls,
+      created_at, updated_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+    ON CONFLICT (slug) DO NOTHING
+    RETURNING *`,
+    [
+      topic.title,
+      topic.slug,
+      topic.category,
+      topic.difficulty,
+      topic.plain_english_summary,
+      topic.when_to_use,
+      topic.when_not_to_use,
+      topic.code_snippet,
+      topic.code_explanation,
+      topic.real_world_example,
+      JSON.stringify(topic.gotchas || []),
+      JSON.stringify(topic.related_topic_ids || []),
+      JSON.stringify(topic.source_urls || []),
+      new Date().toISOString(),
+      new Date().toISOString(),
+    ]
+  );
+  return result.rows[0] as Topic;
+}
+
+async function insertFlashcardDB(flashcard: Partial<Flashcard>): Promise<void> {
+  const flashcardId = crypto.randomUUID();
+  await query(
+    `INSERT INTO flashcards (
+      id, topic_id, card_front, card_back, difficulty,
+      has_code_snippet, code_snippet, memory_hook, created_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+    [
+      flashcardId,
+      flashcard.topic_id,
+      flashcard.card_front,
+      flashcard.card_back,
+      flashcard.difficulty,
+      !!flashcard.code_snippet,
+      flashcard.code_snippet,
+      flashcard.memory_hook,
+      new Date().toISOString(),
+    ]
+  );
+
+  // Create initial progress record
+  await query(
+    `INSERT INTO user_card_progress (
+      card_id, repetition, interval_days, easiness_factor,
+      last_reviewed_at, next_review_date, total_reviews, quality_history, created_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    ON CONFLICT (card_id) DO NOTHING`,
+    [
+      flashcardId,
+      0,
+      1,
+      2.5,
+      null,
+      null,
+      0,
+      '[]',
+      new Date().toISOString(),
+    ]
+  );
+}
+
+// Sample insert functions
+async function insertTopicSample(topic: Partial<Topic>): Promise<Topic> {
   const newTopic = { ...topic, id: String(sampleTopics.length + 1) } as Topic;
   sampleTopics.push(newTopic);
   return newTopic;
 }
 
-export async function insertFlashcard(flashcard: Partial<Flashcard>): Promise<void> {
+async function insertFlashcardSample(flashcard: Partial<Flashcard>): Promise<void> {
   // No-op for demo mode
+}
+
+// Export functions that choose between DB and sample
+export async function insertTopic(topic: Partial<Topic>): Promise<Topic> {
+  if (isDatabaseConfigured()) {
+    try {
+      return await insertTopicDB(topic);
+    } catch (e) {
+      console.warn('DB error, using sample data:', e);
+    }
+  }
+  return insertTopicSample(topic);
+}
+
+export async function insertFlashcard(flashcard: Partial<Flashcard>): Promise<void> {
+  if (isDatabaseConfigured()) {
+    try {
+      return await insertFlashcardDB(flashcard);
+    } catch (e) {
+      console.warn('DB error, using sample data:', e);
+    }
+  }
+  return insertFlashcardSample(flashcard);
 }

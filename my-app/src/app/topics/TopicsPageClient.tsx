@@ -3,8 +3,10 @@
 import { useState } from 'react';
 import { TopicCard } from '@/components/TopicCard';
 import { CategoryFilter } from '@/components/CategoryFilter';
+import { ResearchProgress } from '@/components/ResearchProgress';
+import { ResearchButton } from '@/components/ResearchButton';
 import { Category, Topic } from '@/types';
-import { Sparkles, Loader2 } from 'lucide-react';
+import { useResearchProgress } from '@/hooks/useResearchProgress';
 
 interface TopicsPageClientProps {
   initialTopics: Topic[];
@@ -31,15 +33,7 @@ const CATEGORY_LABELS: Record<Category, string> = {
 export function TopicsPageClient({ initialTopics }: TopicsPageClientProps) {
   const [activeCategory, setActiveCategory] = useState<Category | 'all'>('all');
   const [topics, setTopics] = useState<Topic[]>(initialTopics);
-  const [isResearching, setIsResearching] = useState(false);
-  const [researchProgress, setResearchProgress] = useState<{
-    currentCategory?: string;
-    completed: number;
-    total: number;
-    percentage: number;
-    status: string;
-  } | null>(null);
-  const [researchResult, setResearchResult] = useState<{ success?: boolean; message?: string } | null>(null);
+  const { activeJob, clearJob } = useResearchProgress();
 
   const filteredTopics = activeCategory === 'all'
     ? topics
@@ -55,79 +49,11 @@ export function TopicsPageClient({ initialTopics }: TopicsPageClientProps) {
     'ai-integration': topics.filter(t => t.category === 'ai-integration').length,
   };
 
-  const handleResearch = async () => {
-    setIsResearching(true);
-    setResearchResult(null);
-    setResearchProgress({ completed: 0, total: CATEGORIES.length, percentage: 0, status: 'Starting...' });
-    
-    try {
-      const response = await fetch('/api/research', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer mysimplecronsecret',
-        },
-      });
-      
-      if (!response.body) {
-        throw new Error('No response body');
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n\n');
-        
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              
-              if (data.type === 'progress') {
-                setResearchProgress({
-                  currentCategory: data.category,
-                  completed: data.completed,
-                  total: data.total,
-                  percentage: data.percentage,
-                  status: `Researching ${CATEGORY_LABELS[data.category as Category]}...`,
-                });
-              } else if (data.type === 'complete') {
-                setResearchProgress({
-                  completed: CATEGORIES.length,
-                  total: CATEGORIES.length,
-                  percentage: 100,
-                  status: 'Complete!',
-                });
-                setResearchResult({
-                  success: true,
-                  message: `Added ${data.topics_added} new topics!`,
-                });
-                setTimeout(() => window.location.reload(), 2000);
-              } else if (data.type === 'error') {
-                setResearchResult({
-                  success: false,
-                  message: data.error || 'Research failed',
-                });
-              }
-            } catch (e) {
-              // Ignore parse errors
-            }
-          }
-        }
-      }
-    } catch (error) {
-      setResearchResult({
-        success: false,
-        message: 'Network error',
-      });
-    } finally {
-      setIsResearching(false);
-    }
+  // Refresh topics when research completes
+  const handleDismiss = () => {
+    clearJob();
+    // Reload page to get new topics
+    window.location.reload();
   };
 
   return (
@@ -140,69 +66,15 @@ export function TopicsPageClient({ initialTopics }: TopicsPageClientProps) {
           </p>
         </div>
         
-        <button
-          onClick={handleResearch}
-          disabled={isResearching}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 disabled:bg-indigo-500/50 text-white font-medium rounded-xl transition-colors"
-        >
-          {isResearching ? (
-            <>
-              <Loader2 size={18} className="animate-spin" />
-              Researching...
-            </>
-          ) : (
-            <>
-              <Sparkles size={18} />
-              Research New Topics
-            </>
-          )}
-        </button>
+        <ResearchButton />
       </div>
 
-      {researchProgress && isResearching && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium text-zinc-300">{researchProgress.status}</span>
-            <span className="text-sm text-indigo-400 font-medium">{researchProgress.percentage}%</span>
-          </div>
-          
-          <div className="h-3 bg-zinc-800 rounded-full overflow-hidden mb-4">
-            <div 
-              className="h-full bg-gradient-to-r from-indigo-500 to-cyan-400 transition-all duration-500 ease-out"
-              style={{ width: `${researchProgress.percentage}%` }}
-            />
-          </div>
-          
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-            {CATEGORIES.map((cat, index) => {
-              const isCompleted = index < researchProgress.completed;
-              const isCurrent = researchProgress.currentCategory === cat;
-              
-              return (
-                <div 
-                  key={cat}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-                    isCompleted 
-                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
-                      : isCurrent 
-                        ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 animate-pulse'
-                        : 'bg-zinc-800 text-zinc-500'
-                  }`}
-                >
-                  <span>
-                    {isCompleted ? '✓' : isCurrent ? '●' : '○'}
-                  </span>
-                  <span className="truncate">{CATEGORY_LABELS[cat]}</span>
-                </div>
-              );
-            })}
-          </div>        </div>
-      )}
-
-      {researchResult && (
-        <div className={`p-4 rounded-xl ${researchResult.success ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border border-red-500/20 text-red-400'}`}>
-          {researchResult.message}
-        </div>
+      {/* Research Progress */}
+      {activeJob && (
+        <ResearchProgress 
+          job={activeJob} 
+          onDismiss={activeJob.status !== 'running' ? handleDismiss : undefined}
+        />
       )}
 
       <CategoryFilter

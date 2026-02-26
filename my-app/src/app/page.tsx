@@ -1,5 +1,7 @@
 import { ProgressRing } from "@/components/ProgressRing";
 import { SpacedRepBar } from "@/components/SpacedRepBar";
+import { ResearchProgress } from "@/components/ResearchProgress";
+import { ResearchButton } from "@/components/ResearchButton";
 import { CATEGORY_CONFIG, Category } from "@/types";
 import { getStats, getDueFlashcards } from "@/lib/queries";
 import { initDatabase } from "@/lib/init-db";
@@ -55,14 +57,17 @@ export default async function DashboardPage() {
             </p>
           </div>
           
-          <a
-            href="/flashcards/review"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-medium rounded-xl transition-colors"
-          >
-            <Target size={18} />
-            Start Today's Review
-            <ArrowRight size={18} />
-          </a>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <ResearchButton />
+            <a
+              href="/flashcards/review"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-medium rounded-xl transition-colors"
+            >
+              <Target size={18} />
+              Start Today's Review
+              <ArrowRight size={18} />
+            </a>
+          </div>
         </div>
 
         {/* Quick Stats */}
@@ -117,6 +122,9 @@ export default async function DashboardPage() {
         </div>
       </div>
 
+      {/* Research Progress - Client Component */}
+      <ResearchProgressClient />
+
       {/* Progress Rings */}
       <div>
         <h2 className="text-lg font-semibold text-zinc-100 mb-4">Category Progress</h2>
@@ -139,5 +147,23 @@ export default async function DashboardPage() {
       {/* Spaced Repetition Bar */}
       <SpacedRepBar dueCounts={dueCounts} />
     </div>
+  );
+}
+
+// Client component for research progress
+'use client';
+
+import { useResearchProgress } from "@/hooks/useResearchProgress";
+
+function ResearchProgressClient() {
+  const { activeJob, clearJob } = useResearchProgress();
+  
+  if (!activeJob) return null;
+  
+  return (
+    <ResearchProgress 
+      job={activeJob} 
+      onDismiss={activeJob.status !== 'running' ? clearJob : undefined}
+    />
   );
 }
