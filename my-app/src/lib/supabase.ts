@@ -1,12 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
-import { Database } from './database.types';
+// Supabase client - disabled for PostgreSQL-only deployment
+// This file is kept for compatibility but not used
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
-
-export const getServiceRoleClient = () => {
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  return createClient<Database>(supabaseUrl, supabaseServiceKey);
-};
+export const supabase = null;
+export const getServiceRoleClient = () => null;

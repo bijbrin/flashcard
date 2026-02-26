@@ -106,7 +106,7 @@ export default function ReviewPage() {
   if (sessionComplete) {
     const correctCards = cards.filter(c => {
       const lastQuality = c.progress?.quality_history?.slice(-1)[0];
-      return lastQuality >= 3;
+      return (lastQuality ?? 0) >= 3;
     }).length;
 
     return (
