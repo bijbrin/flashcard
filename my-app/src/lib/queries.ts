@@ -538,16 +538,18 @@ export async function getCategoryDistribution() {
 
 // Database insert functions
 async function insertTopicDB(topic: Partial<Topic>): Promise<Topic> {
+  const topicId = crypto.randomUUID();
   const result = await query(
     `INSERT INTO topics (
-      title, slug, category, difficulty, plain_english_summary,
+      id, title, slug, category, difficulty, plain_english_summary,
       when_to_use, when_not_to_use, code_snippet, code_explanation,
       real_world_example, gotchas, related_topic_ids, source_urls,
       created_at, updated_at
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
     ON CONFLICT (slug) DO NOTHING
     RETURNING *`,
     [
+      topicId,
       topic.title,
       topic.slug,
       topic.category,
