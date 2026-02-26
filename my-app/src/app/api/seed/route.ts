@@ -228,10 +228,10 @@ export async function POST(request: Request) {
     // Insert flashcards
     let flashcardsInserted = 0;
     for (const card of sampleFlashcards) {
-      const topicResult = await query('SELECT id FROM new_topic WHERE slug = $1', [card.topic_slug]);
+      const topicResult = await query('SELECT id FROM topics WHERE slug = $1', [card.topic_slug]);
       if (topicResult.rows[0]) {
         await query(
-          `INSERT INTO flashcard (topic_id, card_front, card_back, difficulty, has_code_snippet, code_snippet, memory_hook)
+          `INSERT INTO flashcards (topic_id, card_front, card_back, difficulty, has_code_snippet, code_snippet, memory_hook)
            VALUES ($1, $2, $3, $4, $5, $6, $7)
            ON CONFLICT DO NOTHING`,
           [
@@ -256,8 +256,8 @@ export async function POST(request: Request) {
     `);
 
     // Get final counts
-    const finalTopics = await query('SELECT COUNT(*) as count FROM new_topic');
-    const finalFlashcards = await query('SELECT COUNT(*) as count FROM flashcard');
+    const finalTopics = await query('SELECT COUNT(*) as count FROM topics');
+    const finalFlashcards = await query('SELECT COUNT(*) as count FROM flashcards');
 
     return NextResponse.json({
       success: true,
