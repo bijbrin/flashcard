@@ -1,10 +1,10 @@
 'use client';
 
 import { ResearchProgress } from "@/components/ResearchProgress";
-import { useResearchProgress } from "@/hooks/useResearchProgress";
+import { useResearch } from "@/context/ResearchContext";
 
 export function ResearchProgressClient() {
-  const { activeJob, clearJob } = useResearchProgress();
+  const { activeJob, clearJob } = useResearch();
   
   if (!activeJob) return null;
   

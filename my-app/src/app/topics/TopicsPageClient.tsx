@@ -6,7 +6,7 @@ import { CategoryFilter } from '@/components/CategoryFilter';
 import { ResearchProgress } from '@/components/ResearchProgress';
 import { ResearchButton } from '@/components/ResearchButton';
 import { Category, Topic } from '@/types';
-import { useResearchProgress } from '@/hooks/useResearchProgress';
+import { useResearch } from '@/context/ResearchContext';
 
 interface TopicsPageClientProps {
   initialTopics: Topic[];
@@ -33,7 +33,7 @@ const CATEGORY_LABELS: Record<Category, string> = {
 export function TopicsPageClient({ initialTopics }: TopicsPageClientProps) {
   const [activeCategory, setActiveCategory] = useState<Category | 'all'>('all');
   const [topics, setTopics] = useState<Topic[]>(initialTopics);
-  const { activeJob, clearJob } = useResearchProgress();
+  const { activeJob, clearJob } = useResearch();
 
   const filteredTopics = activeCategory === 'all'
     ? topics
