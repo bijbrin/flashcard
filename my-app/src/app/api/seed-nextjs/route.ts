@@ -1183,8 +1183,8 @@ export async function POST(request: Request) {
     const insertedTopics = [];
     for (const topic of nextjsTopics) {
       const result = await query(
-        `INSERT INTO topics (id, title, slug, category, difficulty, plain_english_summary, when_to_use, when_not_to_use, code_snippet, code_explanation, real_world_example, gotchas, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        `INSERT INTO topics (id, title, slug, category, difficulty, plain_english_summary, when_to_use, when_not_to_use, code_snippet, code_explanation, real_world_example, gotchas, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
          ON CONFLICT (slug) DO NOTHING
          RETURNING id, slug`,
         [
@@ -1200,7 +1200,6 @@ export async function POST(request: Request) {
           topic.code_explanation,
           topic.real_world_example,
           JSON.stringify(topic.gotchas),
-          new Date().toISOString(),
           new Date().toISOString(),
         ]
       );
