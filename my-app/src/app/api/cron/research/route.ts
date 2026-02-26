@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { researchNewTopics } from '@/lib/agents/cronResearcher';
-import { generateFlashcardsForTopics } from '@/lib/agents/flashcardEngine';
+import { generateFlashcards } from '@/lib/agents/openai';
 import { query, isDatabaseConfigured } from '@/lib/db';
 import { Category } from '@/types';
 
@@ -89,48 +89,61 @@ export async function POST(request: Request) {
     }
 
     // Generate and insert flashcards for new topics
-    const flashcards = await generateFlashcardsForTopics(insertedTopics);
     let flashcardsInserted = 0;
 
-    for (const flashcard of flashcards) {
-      await query(
-        `INSERT INTO flashcards (
-          id, topic_id, card_front, card_back, difficulty,
-          has_code_snippet, code_snippet, memory_hook, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [
-          flashcard.id,
-          flashcard.topic_id,
-          flashcard.card_front,
-          flashcard.card_back,
-          flashcard.difficulty,
-          flashcard.has_code_snippet,
-          flashcard.code_snippet,
-          flashcard.memory_hook,
-          new Date().toISOString(),
-        ]
-      );
-      flashcardsInserted++;
+    for (const topic of insertedTopics) {
+      console.log(`Generating flashcards for: ${topic.title} (id: ${topic.id})`);
+      
+      try {
+        const result = await generateFlashcards(topic);
 
-      // Create initial progress record
-      await query(
-        `INSERT INTO user_card_progress (
-          card_id, repetition, interval_days, easiness_factor,
-          last_reviewed_at, next_review_date, total_reviews, quality_history, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        ON CONFLICT (card_id) DO NOTHING`,
-        [
-          flashcard.id,
-          0,
-          1,
-          2.5,
-          null,
-          null,
-          0,
-          '[]',
-          new Date().toISOString(),
-        ]
-      );
+        if (result.flashcards?.length) {
+          for (const f of result.flashcards) {
+            const flashcardId = crypto.randomUUID();
+            
+            await query(
+              `INSERT INTO flashcards (
+                id, topic_id, card_front, card_back, difficulty,
+                has_code_snippet, code_snippet, memory_hook, created_at
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+              [
+                flashcardId,
+                topic.id,  // Now topic.id exists from DB
+                f.card_front,
+                f.card_back,
+                f.difficulty,
+                !!f.code_snippet,
+                f.code_snippet,
+                f.memory_hook,
+                new Date().toISOString(),
+              ]
+            );
+            flashcardsInserted++;
+
+            // Create initial progress record
+            await query(
+              `INSERT INTO user_card_progress (
+                card_id, repetition, interval_days, easiness_factor,
+                last_reviewed_at, next_review_date, total_reviews, quality_history, created_at
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+              ON CONFLICT (card_id) DO NOTHING`,
+              [
+                flashcardId,
+                0,
+                1,
+                2.5,
+                null,
+                null,
+                0,
+                '[]',
+                new Date().toISOString(),
+              ]
+            );
+          }
+        }
+      } catch (error) {
+        console.error(`Error generating flashcards for ${topic.title}:`, error);
+      }
     }
 
     console.log(`Inserted ${insertedTopics.length} topics and ${flashcardsInserted} flashcards`);
